@@ -6,6 +6,7 @@ import '../models/category.dart';
 import '../models/item.dart';
 import '../models/subcategory.dart';
 import '../services/data_service.dart';
+import '../widgets/custom_image_widget.dart';
 import '../widgets/item_dialog.dart';
 import 'item_screen.dart';
 
@@ -50,9 +51,11 @@ class SubCategoryScreen extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: item.imagePath != null
-            ? CircleAvatar(
-                backgroundImage: AssetImage(item.imagePath!),
-                radius: 24,
+            ? CustomImageWidget(
+                imagePath: item.imagePath,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
               )
             : const CircleAvatar(
                 child: Icon(Icons.image),

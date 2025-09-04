@@ -1,12 +1,13 @@
-// widgets/item_dialog.dart (updated)
+// widgets/item_dialog.dart (updated image handling)
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../models/category.dart';
 import '../models/item.dart';
 import '../models/subcategory.dart';
 import '../services/data_service.dart';
+import '../services/image_service.dart';
+import '../widgets/custom_image_widget.dart';
 
 class ItemDialog extends StatefulWidget {
   final Category category;
@@ -29,6 +30,7 @@ class _ItemDialogState extends State<ItemDialog> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   String? _imagePath;
+  bool _isImageLoading = false;
 
   @override
   void initState() {
@@ -100,8 +102,10 @@ class _ItemDialogState extends State<ItemDialog> {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: _saveItem,
-          child: const Text('Save'),
+          onPressed: _isImageLoading ? null : _saveItem,
+          child: _isImageLoading
+              ? const CircularProgressIndicator()
+              : const Text('Save'),
         ),
       ],
     );
@@ -110,36 +114,54 @@ class _ItemDialogState extends State<ItemDialog> {
   Widget _buildImageSection() {
     return Column(
       children: [
-        if (_imagePath != null)
-          Image.asset(
-            _imagePath!,
-            height: 100,
-            width: 100,
-            fit: BoxFit.cover,
-          )
-        else
-          Container(
-            height: 100,
-            width: 100,
-            color: Colors.grey[200],
-            child: const Icon(Icons.image, color: Colors.grey),
-          ),
+        CustomImageWidget(
+          imagePath: _imagePath,
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+        ),
         const SizedBox(height: 8),
         ElevatedButton(
-          onPressed: _pickImage,
-          child: const Text('Pick Image'),
+          onPressed: _isImageLoading ? null : _pickImage,
+          child: _isImageLoading
+              ? const CircularProgressIndicator()
+              : const Text('Pick Image'),
         ),
+        if (_imagePath != null) ...[
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _imagePath = null;
+              });
+            },
+            child: const Text('Remove Image'),
+          ),
+        ]
       ],
     );
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    setState(() {
+      _isImageLoading = true;
+    });
 
-    if (pickedFile != null) {
+    try {
+      final imagePath = await ImageService.pickAndSaveImage();
+      if (imagePath != null) {
+        setState(() {
+          _imagePath = imagePath;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to pick image')),
+      );
+    } finally {
       setState(() {
-        _imagePath = pickedFile.path;
+        _isImageLoading = false;
       });
     }
   }

@@ -171,9 +171,14 @@ class DataService with ChangeNotifier {
 
   // Item CRUD operations
   Future<void> addItem(Item item) async {
-    _items.add(item);
-    await _saveItems();
-    notifyListeners();
+    try {
+      _items.add(item);
+      await _saveItems();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error adding item: $e');
+      rethrow;
+    }
   }
 
   Future<void> updateItem(Item item) async {

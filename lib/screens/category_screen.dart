@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/category.dart';
 import '../models/item.dart';
 import '../services/data_service.dart';
+import '../widgets/custom_image_widget.dart';
 import 'item_screen.dart';
 
 class CategoryScreen extends StatelessWidget {
@@ -57,8 +58,10 @@ class CategoryScreen extends StatelessWidget {
           children: [
             Expanded(
               child: item.imagePath != null
-                  ? Image.asset(
-                      item.imagePath!,
+                  ? CustomImageWidget(
+                      imagePath: item.imagePath,
+                      width: double.infinity,
+                      height: 120,
                       fit: BoxFit.cover,
                     )
                   : Container(
