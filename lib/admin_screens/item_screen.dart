@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/item.dart';
+import '../widgets/custom_image_widget.dart';
 
 class ItemScreen extends StatelessWidget {
   final Item item;
@@ -21,13 +22,15 @@ class ItemScreen extends StatelessWidget {
           children: [
             if (item.imagePath != null)
               Center(
-                child: Image.asset(
-                  item.imagePath!,
+                  child: Padding(
+                padding: EdgeInsets.symmetric(
+                    horizontal: MediaQuery.of(context).size.width / 2.5),
+                child: CustomImageWidget(
+                  imagePath: item.imagePath,
                   width: double.infinity,
-                  height: 200,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                 ),
-              )
+              ))
             else
               Container(
                 width: double.infinity,
