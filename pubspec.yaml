@@ -11,21 +11,28 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
-  image_picker: ^1.0.4
-  file_picker: ^5.5.0
-  path_provider: ^2.1.1
-  path: ^1.8.3 
-  intl: ^0.18.1
-  provider: ^6.1.1
-  uuid: ^4.4.0
+  uuid: ^4.5.1
+  provider: ^6.1.5+1
   shared_preferences: ^2.5.3
+  image_picker: ^1.2.0
+  image: ^4.5.4
+  http: ^1.5.0
+  flutter_image_compress: ^2.4.0
+  path_provider: ^2.1.5
+  cached_network_image: ^3.4.1
+ 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
-
+ 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/client.png
+    - assets/images/spms.png
+    - assets/images/attendant.png
+    - assets/images/inspector.png
+    - assets/images/auditor.png
