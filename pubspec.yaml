@@ -34,8 +34,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/images/client.png
-    - assets/images/spms.png
-    - assets/images/attendant.png
-    - assets/images/inspector.png
-    - assets/images/auditor.png
+    - assets/files/
