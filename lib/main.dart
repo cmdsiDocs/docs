@@ -2,9 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'models/category.dart';
-import 'models/item.dart';
-import 'models/subcategory.dart';
 import 'screens/home_screen.dart';
 import 'services/data_service.dart';
 import 'theme/app_theme.dart';
@@ -23,7 +20,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DataService()),
       ],
       child: MaterialApp(
-        title: 'Parking Management',
+        title: 'Luvpark Management',
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,

@@ -45,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (_selectedCategory != null) {
       return _selectedCategory!.name;
     }
-    return 'Parking Management';
+    return 'Luvpark Management';
   }
 
   Widget _buildDrawer(BuildContext context, List<Category> categories) {
@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icon(Icons.local_parking, size: 48, color: Colors.white),
                 SizedBox(height: 8),
                 Text(
-                  'Parking Management',
+                  'Luvpark System',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -73,35 +73,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final category = categories[index];
-                return ExpansionTile(
-                  leading: const Icon(Icons.category),
-                  title: Text(category.name),
-                  onExpansionChanged: (expanded) {
-                    if (expanded) {
-                      setState(() {
-                        _selectedCategory = category;
-                        _selectedSubCategory = null;
-                        _selectedIndex = 0;
-                      });
-                    }
-                  },
-                  children: [
-                    ..._buildSubCategoryTiles(context, category),
-                    ListTile(
-                      leading: const Icon(Icons.add),
-                      title: const Text('Add Subcategory'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showAddSubCategoryDialog(context, category);
-                      },
-                    ),
-                  ],
-                );
-              },
+            child: ListView(
+              children: [
+                _buildMainCategoryTiles(context, categories),
+                const Divider(),
+                _buildQuickAccessTiles(context),
+              ],
             ),
           ),
         ],
@@ -109,46 +86,158 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  List<Widget> _buildSubCategoryTiles(BuildContext context, Category category) {
+  Widget _buildMainCategoryTiles(
+      BuildContext context, List<Category> categories) {
+    return Column(
+      children: categories.map((category) {
+        return ExpansionTile(
+          leading: category.imagePath != null
+              ? Image.asset(category.imagePath!, width: 24, height: 24)
+              : const Icon(Icons.category),
+          title: Text(category.name),
+          subtitle:
+              Text(category.description, style: const TextStyle(fontSize: 12)),
+          onExpansionChanged: (expanded) {
+            if (expanded) {
+              setState(() {
+                _selectedCategory = category;
+                _selectedSubCategory = null;
+                _selectedIndex = 0;
+              });
+            }
+          },
+          children: [
+            if (category.name == 'Luvpark SPMS')
+              ..._buildSPMSSubCategories(context, category)
+            else
+              _buildClientCategoryContent(context, category),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  List<Widget> _buildSPMSSubCategories(
+      BuildContext context, Category category) {
     final dataService = Provider.of<DataService>(context);
     final subCategories = dataService.getSubCategoriesByCategory(category.id);
 
-    return subCategories.map((subCategory) {
-      return Padding(
+    return [
+      ...subCategories.map((subCategory) {
+        return Padding(
+          padding: const EdgeInsets.only(left: 24.0),
+          child: ListTile(
+            leading: subCategory.imagePath != null
+                ? Image.asset(subCategory.imagePath!, width: 20, height: 20)
+                : const Icon(Icons.subdirectory_arrow_right, size: 20),
+            title: Text(subCategory.name),
+            subtitle: Text(subCategory.description,
+                style: const TextStyle(fontSize: 12)),
+            onTap: () {
+              setState(() {
+                _selectedCategory = category;
+                _selectedSubCategory = subCategory;
+                _selectedIndex = 1;
+              });
+              Navigator.pop(context);
+            },
+            trailing: PopupMenuButton(
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Edit'),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete'),
+                ),
+              ],
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _showEditSubCategoryDialog(context, subCategory);
+                } else if (value == 'delete') {
+                  _showDeleteSubCategoryDialog(context, subCategory);
+                }
+              },
+            ),
+          ),
+        );
+      }),
+      Padding(
         padding: const EdgeInsets.only(left: 24.0),
         child: ListTile(
-          leading: const Icon(Icons.subdirectory_arrow_right),
-          title: Text(subCategory.name),
+          leading: const Icon(Icons.add, size: 20),
+          title: const Text('Add Role'),
+          onTap: () {
+            Navigator.pop(context);
+            _showAddSubCategoryDialog(context, category);
+          },
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildClientCategoryContent(BuildContext context, Category category) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 24.0),
+      child: ListTile(
+        leading: const Icon(Icons.phone_iphone, size: 20),
+        title: const Text('Mobile App Features'),
+        subtitle: const Text('Client-facing application',
+            style: TextStyle(fontSize: 12)),
+        onTap: () {
+          setState(() {
+            _selectedCategory = category;
+            _selectedSubCategory = null;
+            _selectedIndex = 0;
+          });
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
+  Widget _buildQuickAccessTiles(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Text(
+            'Quick Access',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.dashboard),
+          title: const Text('Dashboard'),
           onTap: () {
             setState(() {
-              _selectedCategory = category;
-              _selectedSubCategory = subCategory;
-              _selectedIndex = 1;
+              _selectedCategory = null;
+              _selectedSubCategory = null;
+              _selectedIndex = 0;
             });
             Navigator.pop(context);
           },
-          trailing: PopupMenuButton(
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Text('Edit'),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete'),
-              ),
-            ],
-            onSelected: (value) {
-              if (value == 'edit') {
-                _showEditSubCategoryDialog(context, subCategory);
-              } else if (value == 'delete') {
-                _showDeleteSubCategoryDialog(context, subCategory);
-              }
-            },
-          ),
         ),
-      );
-    }).toList();
+        ListTile(
+          leading: const Icon(Icons.settings),
+          title: const Text('Settings'),
+          onTap: () {
+            // Navigate to settings
+            Navigator.pop(context);
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.help),
+          title: const Text('Help & Support'),
+          onTap: () {
+            // Navigate to help
+            Navigator.pop(context);
+          },
+        ),
+      ],
+    );
   }
 
   Widget _buildBody(BuildContext context) {
@@ -170,10 +259,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.dashboard, size: 64, color: Colors.blue),
+          Icon(Icons.local_parking, size: 64, color: Colors.blue),
           SizedBox(height: 16),
           Text(
-            'Welcome to Parking Management',
+            'Luvpark Management System',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
@@ -231,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Subcategory'),
+        title: const Text('Delete Role'),
         content: Text('Are you sure you want to delete ${subCategory.name}?'),
         actions: [
           TextButton(

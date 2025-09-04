@@ -30,22 +30,21 @@ class DataService with ChangeNotifier {
       final List<dynamic> categoriesList = json.decode(categoriesJson);
       _categories = categoriesList.map((e) => Category.fromMap(e)).toList();
     } else {
-      // Add default categories
+      // Add default categories with new structure
       _categories = [
         Category(
-          name: 'Parking Attendant',
-          description: 'Manage parking attendant operations',
+          name: 'Luvpark for Client',
+          description: 'Client-facing parking management system',
+          imagePath: 'assets/images/client.png',
         ),
         Category(
-          name: 'Inspector',
-          description: 'Manage inspector operations',
-        ),
-        Category(
-          name: 'Auditor',
-          description: 'Manage auditor operations',
+          name: 'Luvpark SPMS',
+          description: 'Smart Parking Management System',
+          imagePath: 'assets/images/spms.png',
         ),
       ];
       await _saveCategories();
+      await _addDefaultSubCategories();
     }
 
     // Load subcategories
@@ -64,6 +63,38 @@ class DataService with ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<void> _addDefaultSubCategories() async {
+    final spmsCategory =
+        _categories.firstWhere((c) => c.name == 'Luvpark SPMS');
+
+    final defaultSubCategories = [
+      SubCategory(
+        categoryId: spmsCategory.id,
+        name: 'Parking Attendant',
+        description: 'Manage parking attendant operations and activities',
+        imagePath: 'assets/images/attendant.png',
+      ),
+      SubCategory(
+        categoryId: spmsCategory.id,
+        name: 'Inspector',
+        description: 'Manage inspector operations and monitoring',
+        imagePath: 'assets/images/inspector.png',
+      ),
+      SubCategory(
+        categoryId: spmsCategory.id,
+        name: 'Auditor',
+        description: 'Manage auditing and reporting operations',
+        imagePath: 'assets/images/auditor.png',
+      ),
+    ];
+
+    for (var subCategory in defaultSubCategories) {
+      _subCategories.add(subCategory);
+    }
+
+    await _saveSubCategories();
   }
 
   Future<void> _saveCategories() async {
