@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'screens/about_screen.dart';
-import 'screens/api_documentation_screen.dart';
+import 'screens/api_screen.dart'; // New
 import 'screens/contact_screen.dart';
+import 'screens/documentation_screen.dart'; // New
+// main.dart (imports section)
 import 'screens/home_screen.dart';
-import 'widgets/responsive_widget.dart';
 
 void main() {
   runApp(const CleverMindsApp());
@@ -47,26 +48,28 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const AboutScreen(),
-    const ApiDocumentationScreen(),
+    const ApiScreen(),
+    const DocumentationScreen(),
     const ContactScreen(),
   ];
 
   final List<String> _tabTitles = [
     'Home',
     'About Us',
-    'API Documentation',
-    'Contact Us',
+    'API',
+    'Documentation',
+    'Contact Us'
   ];
 
   @override
   Widget build(BuildContext context) {
+    final bool isWideScreen = MediaQuery.of(context).size.width > 768;
+
     return Scaffold(
-      appBar:
-          ResponsiveWidget.isDesktop(context) ? _buildDesktopAppBar() : null,
+      appBar: isWideScreen ? _buildDesktopAppBar() : null,
       body: _screens[_currentIndex],
-      bottomNavigationBar:
-          ResponsiveWidget.isMobile(context) ? _buildMobileNavigation() : null,
-      drawer: ResponsiveWidget.isMobile(context) ? _buildMobileDrawer() : null,
+      bottomNavigationBar: isWideScreen ? null : _buildMobileNavigation(),
+      drawer: !isWideScreen ? _buildMobileDrawer() : null,
     );
   }
 
@@ -74,7 +77,6 @@ class _MainScreenState extends State<MainScreen> {
     return AppBar(
       title: Row(
         children: [
-          // Logo placeholder - you can replace with actual logo
           Container(
             width: 40,
             height: 40,
@@ -103,7 +105,6 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
           const Spacer(),
-          // Desktop Navigation Tabs
           Row(
             children: List.generate(_tabTitles.length, (index) {
               return Padding(
@@ -114,10 +115,8 @@ class _MainScreenState extends State<MainScreen> {
                     foregroundColor: _currentIndex == index
                         ? Colors.blue[800]
                         : Colors.grey[600],
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                   child: Text(
                     _tabTitles[index],
@@ -160,9 +159,22 @@ class _MainScreenState extends State<MainScreen> {
       selectedItemColor: Colors.blue[800],
       unselectedItemColor: Colors.grey[600],
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        BottomNavigationBarItem(icon: Icon(Icons.info), label: 'About'),
-        BottomNavigationBarItem(icon: Icon(Icons.api), label: 'API Docs'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.info),
+          label: 'About',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.api),
+          label: 'API',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.description),
+          label: 'Docs',
+        ),
         BottomNavigationBarItem(
           icon: Icon(Icons.contact_mail),
           label: 'Contact',
@@ -177,7 +189,9 @@ class _MainScreenState extends State<MainScreen> {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(color: Colors.blue[800]),
+            decoration: BoxDecoration(
+              color: Colors.blue[800],
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -269,6 +283,8 @@ class _MainScreenState extends State<MainScreen> {
       case 2:
         return Icons.api;
       case 3:
+        return Icons.description;
+      case 4:
         return Icons.contact_mail;
       default:
         return Icons.home;
