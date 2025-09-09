@@ -1,12 +1,10 @@
 // ignore_for_file: depend_on_referenced_packages
 
 import 'dart:io';
-
-import 'package:path/path.dart';
+import 'package:cmdsidocs/variables.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
-
-import '../lib/variables.dart';
+import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const _databaseVersion = 1;
