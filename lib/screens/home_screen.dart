@@ -84,8 +84,8 @@ class HomeScreen extends StatelessWidget {
               horizontal: isVeryWideScreen
                   ? 120
                   : isWideScreen
-                  ? 60
-                  : 20,
+                      ? 60
+                      : 20,
             ),
             child: Text(
               'To empower businesses with innovative digital solutions that drive growth, '
@@ -104,8 +104,8 @@ class HomeScreen extends StatelessWidget {
               horizontal: isVeryWideScreen
                   ? 120
                   : isWideScreen
-                  ? 60
-                  : 20,
+                      ? 60
+                      : 20,
             ),
             child: Text(
               'To be the leading digital solutions provider known for creativity, '
