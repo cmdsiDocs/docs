@@ -1,427 +1,644 @@
 // screens/api_screen.dart
+// ignore_for_file: deprecated_member_use
+
+import 'dart:convert';
+
+import 'package:cmdsidocs/database/pages_tbl.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 
-class ApiScreen extends StatelessWidget {
-  const ApiScreen({super.key});
+class ApiScreen extends StatefulWidget {
+  const ApiScreen({super.key, this.menuId});
+
+  final int? menuId;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'API Reference',
-              style: GoogleFonts.poppins(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue[800],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Explore our RESTful API endpoints',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 40),
-
-            // Authentication Section
-            _buildApiSection(
-              context,
-              'Authentication',
-              'Secure your API requests with JWT tokens',
-              '''
-## Base URLs
-- **Production**: https://api.cleverminds.com/v1
-- **Sandbox**: https://api-sandbox.cleverminds.com/v1
-
-## Authentication
-All API requests require authentication. Include your API key in the header:
-''',
-              '''
-Authorization: Bearer YOUR_API_KEY
-''',
-              'http',
-              '''
-## Getting API Key
-1. Sign up for an account
-2. Go to Dashboard → API Settings
-3. Generate your API key
-''',
-            ),
-
-            // Users API
-            _buildApiSection(
-              context,
-              'Users API',
-              'Manage user accounts and profiles',
-              '''
-### Get User Profile
-''',
-              '''
-GET /users/{id}
-Authorization: Bearer <token>
-''',
-              'http',
-              '''
-**Response:**
-''',
-              '''
-{
-  "id": "user_123",
-  "name": "John Doe",
-  "email": "john@example.com",
-  "created_at": "2023-01-01T00:00:00Z",
-  "status": "active"
+  State<ApiScreen> createState() => _ApiScreenState();
 }
-''',
-              'json',
-              '''
-### Update User
-''',
-              '''
-PUT /users/{id}
-Authorization: Bearer <token>
-Content-Type: application/json
 
-{
-  "name": "John Smith",
-  "email": "john.smith@example.com"
-}
-''',
-              'http',
-            ),
+class _ApiScreenState extends State<ApiScreen> {
+  List<Map<String, dynamic>> menus = [];
+  List<dynamic> apiDocs = [];
+  bool isLoading = true;
+  int menuId = 0;
 
-            // Projects API
-            _buildApiSection(
-              context,
-              'Projects API',
-              'Create and manage development projects',
-              '''
-### List Projects
-''',
-              '''
-GET /projects
-Authorization: Bearer <token>
-''',
-              'http',
-              '''
-### Create Project
-''',
-              '''
-POST /projects
-Authorization: Bearer <token>
-Content-Type: application/json
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _sectionKeys = {};
 
-{
-  "name": "New Project",
-  "description": "Project description",
-  "budget": 5000,
-  "deadline": "2024-12-31"
-}
-''',
-              'http',
-              '''
-**Response:**
-''',
-              '''
-{
-  "id": "project_123",
-  "name": "New Project",
-  "status": "draft",
-  "created_at": "2023-01-01T00:00:00Z"
-}
-''',
-              'json',
-            ),
+  @override
+  void initState() {
+    super.initState();
+    menuId = widget.menuId ?? 0;
+    _loadMenus();
+  }
 
-            // Files API
-            _buildApiSection(
-              context,
-              'Files API',
-              'Upload and manage project files',
-              '''
-### Upload File
-''',
-              '''
-POST /files/upload
-Authorization: Bearer <token>
-Content-Type: multipart/form-data
+  Future<void> _loadMenus() async {
+    await DatabaseHelper.instance.fetchAllPagesByPageId(0).then((res) {
+      setState(() {
+        menus = res;
+        isLoading = false;
+      });
+    });
+  }
 
-{
-  "file": "[binary data]",
-  "project_id": "project_123"
-}
-''',
-              'http',
-              '''
-### List Project Files
-''',
-              '''
-GET /projects/{id}/files
-Authorization: Bearer <token>
-''',
-              'http',
-            ),
-          ],
-        ),
+  Future<void> _loadApiDocumentation() async {
+    final sampleData = await DatabaseHelper.instance.getPageContent(menuId);
+
+    setState(() {
+      apiDocs = sampleData;
+      for (var doc in apiDocs) {
+        _sectionKeys[doc["title"]] = GlobalKey();
+      }
+      isLoading = false;
+    });
+  }
+
+  void _scrollToSection(String title) {
+    final key = _sectionKeys[title];
+    if (key != null && key.currentContext != null) {
+      Scrollable.ensureVisible(
+        key.currentContext!,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  // Restore Add dialog + insertion logic
+  void _addNewApiDocumentation() {
+    showDialog(
+      context: context,
+      builder: (context) => AddApiDocumentationDialog(
+        onSave: (newDoc) async {
+          setState(() => apiDocs.add(newDoc));
+
+          await DatabaseHelper.instance
+              .insertUpdateNewTextFile(menuId, jsonEncode(apiDocs));
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Added: ${newDoc["title"]}')),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildApiSection(BuildContext context, String title, String subtitle,
-      [String? text1,
-      String? code1,
-      String? lang1,
-      String? text2,
-      String? code2,
-      String? lang2,
-      String? text3,
-      String? code3,
-      String? lang3]) {
-    // Helper function to build text content
-    Widget _buildTextContent(String text) {
-      final lines = text.split('\n');
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: lines.map((line) {
-          if (line.startsWith('## ') || line.startsWith('### ')) {
-            // Header styling
-            final isH2 = line.startsWith('## ');
-            return Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 8),
-              child: Text(
-                line.replaceAll(RegExp(r'^#+ '), ''),
+  void _addNewMenu() {
+    showDialog(
+      context: context,
+      builder: (context) => AddApiMenuDialog(
+        menus: menus,
+        onSave: (menu) async {
+          await DatabaseHelper.instance.insertPage(menu);
+
+          setState(() => menus.add(menu));
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Added: ${menu["title"]}')),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSidebar(bool isMobile) {
+    return Container(
+      width: isMobile ? null : 240,
+      color: Colors.grey[100],
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'API Reference',
                 style: GoogleFonts.poppins(
-                  fontSize: isH2 ? 20 : 18,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                   color: Colors.blue[800],
                 ),
               ),
-            );
-          } else if (line.startsWith('- **')) {
-            // List item with bold
-            final parts = line.split('**');
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: RichText(
-                text: TextSpan(
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
-                  children: [
-                    const TextSpan(text: '• '),
-                    TextSpan(
-                      text: parts[1],
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    TextSpan(text: parts[2]),
-                  ],
-                ),
+              IconButton(
+                icon: const Icon(Icons.add_circle, color: Colors.blue),
+                tooltip: "Add Menu",
+                onPressed: _addNewMenu,
               ),
-            );
-          } else if (line.startsWith('**') && line.endsWith('**')) {
-            // Bold text
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                line.replaceAll('**', ''),
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            );
-          } else if (line.isEmpty) {
-            return const SizedBox(height: 8);
-          } else if (line.startsWith('1. ') ||
-              line.startsWith('2. ') ||
-              line.startsWith('3. ')) {
-            // Numbered list
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                line,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.black87,
-                ),
-              ),
-            );
-          } else {
-            // Regular text
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                line,
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.black87,
-                ),
-              ),
-            );
-          }
-        }).toList(),
-      );
-    }
-
-    // Helper function to build code block
-    Widget _buildCodeBlock(BuildContext context, String code, String language) {
-      final isDesktop = MediaQuery.of(context).size.width > 600;
-
-      return Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2D2D2D), // Dark IDE-like background
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 45, 16, 16),
-              child: SelectableText(
-                code,
-                style: GoogleFonts.firaCode(
-                  fontSize: isDesktop ? 14 : 12,
-                  color: Colors.white,
-                  height: 1.5,
-                ),
-              ),
-            ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getLanguageColor(language),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      language.toUpperCase(),
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: code));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Code copied to clipboard'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[700],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(
-                        Icons.content_copy,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Build the section content by processing all parameters
-    final List<Widget> contentChildren = [];
-
-    void addContent(dynamic content) {
-      if (content is String && content.isNotEmpty) {
-        contentChildren.add(_buildTextContent(content));
-      }
-    }
-
-    void addCode(String? code, String? lang) {
-      if (code != null && code.isNotEmpty && lang != null) {
-        contentChildren.add(_buildCodeBlock(context, code, lang));
-      }
-    }
-
-    // Process all parameters in order
-    addContent(text1);
-    addCode(code1, lang1);
-    addContent(text2);
-    addCode(code2, lang2);
-    addContent(text3);
-    addCode(code3, lang3);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 40),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue[800],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            subtitle,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            ],
           ),
           const SizedBox(height: 20),
-          ...contentChildren,
+          ...menus.map((entry) {
+            return ExpansionTile(
+              title: Text(
+                entry["title"],
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              children: (entry["children"] as List).map<Widget>((doc) {
+                if (doc["children"] != null &&
+                    (doc["children"] as List).isNotEmpty) {
+                  // 🔁 Submenu (recursively ExpansionTile)
+                  return ExpansionTile(
+                    title: Text(
+                      doc["title"],
+                      style: GoogleFonts.poppins(
+                          fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                    children: (doc["children"] as List).map<Widget>((subDoc) {
+                      return ListTile(
+                        title: Text(
+                          subDoc["title"],
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                        onTap: () {
+                          if (isMobile) Navigator.pop(context);
+                          setState(() => menuId = subDoc["id"]);
+                          _loadApiDocumentation();
+                        },
+                      );
+                    }).toList(),
+                  );
+                } else {
+                  // ✅ Regular page (no children)
+                  return ListTile(
+                    title: Text(
+                      doc["title"],
+                      style: GoogleFonts.poppins(fontSize: 14),
+                    ),
+                    onTap: () {
+                      if (isMobile) Navigator.pop(context);
+                      setState(() => menuId = doc["id"]);
+                      _loadApiDocumentation();
+                    },
+                  );
+                }
+              }).toList(),
+            );
+          }),
         ],
       ),
     );
   }
 
-  Color _getLanguageColor(String language) {
-    switch (language) {
-      case 'http':
-        return Colors.blue;
-      case 'json':
-        return Colors.green;
-      default:
-        return Colors.purple;
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 800;
+
+    return Scaffold(
+      appBar: isMobile
+          ? AppBar(
+              title: const Text("API Reference"),
+              backgroundColor: Colors.white,
+            )
+          : null,
+      drawer: isMobile
+          ? Drawer(
+              child: _buildSidebar(true),
+            )
+          : null,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Row(
+              children: [
+                if (!isMobile) _buildSidebar(false),
+
+                // -------- Main Content --------
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: apiDocs
+                          .map(
+                            (api) => Container(
+                              key: _sectionKeys[api["title"]],
+                              margin: const EdgeInsets.only(bottom: 40),
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    api["title"],
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue[800],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    api["description"],
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  _buildCodeBlock(api["code"], 'http'),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+      // -------- Floating Add Button --------
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addNewApiDocumentation,
+        backgroundColor: Colors.blue,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildCodeBlock(String code, String language) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2D2D2D),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 45, 16, 16),
+            child: SelectableText(
+              code,
+              style: GoogleFonts.firaCode(
+                fontSize: 14,
+                color: Colors.white,
+                height: 1.5,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    language.toUpperCase(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: code));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Code copied to clipboard'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[700],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.content_copy,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Add Menu
+class AddApiMenuDialog extends StatefulWidget {
+  const AddApiMenuDialog(
+      {super.key, required this.onSave, required this.menus});
+  final Function(Map<String, dynamic>) onSave;
+  final List<Map<String, dynamic>> menus;
+
+  @override
+  State<AddApiMenuDialog> createState() => _AddApiMenuDialogState();
+}
+
+class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _codeController = TextEditingController();
+  String? isMainPage = '1';
+  String? parentPageId;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  void _onSave() {
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Title required')));
+      return;
     }
+
+    widget.onSave({
+      "page_id": 0,
+      "title": title,
+      "description": description,
+      "is_main_page": int.parse(isMainPage ?? '0'),
+      "parent_page_id": parentPageId,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Add New Menu',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Title',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              decoration: InputDecoration(
+                labelText: 'Is main menu?',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              items: [
+                const DropdownMenuItem(
+                    value: null, child: Text('Select (Y/N)')),
+                ...[
+                  {"text": 'Yes', "value": '1'},
+                  {"text": 'No', "value": '0'}
+                ].map(
+                  (item) => DropdownMenuItem(
+                    value: item["value"],
+                    child: Text(item["text"] as String),
+                  ),
+                ),
+              ],
+              value: isMainPage,
+              onChanged: (value) => setState(
+                () => isMainPage = value,
+              ),
+            ),
+            if (int.parse(isMainPage ?? '0') == 0) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: 'Parent menu',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                      value: null, child: Text('Select parent menu')),
+                  ...widget.menus.map(
+                    (item) => DropdownMenuItem(
+                      value: item["id"].toString(),
+                      child: Text(item["title"] as String),
+                    ),
+                  ),
+                ],
+                value: parentPageId,
+                onChanged: (value) => setState(
+                  () => parentPageId = value,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel')),
+                const SizedBox(width: 12),
+                ElevatedButton(onPressed: _onSave, child: const Text('Save')),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Add API dialog + code editor
+class AddApiDocumentationDialog extends StatefulWidget {
+  const AddApiDocumentationDialog(
+      {super.key, required this.onSave, this.parentPageId});
+  final Function(Map<String, dynamic>) onSave;
+  final int? parentPageId;
+
+  @override
+  State<AddApiDocumentationDialog> createState() =>
+      _AddApiDocumentationDialogState();
+}
+
+class _AddApiDocumentationDialogState extends State<AddApiDocumentationDialog> {
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _codeController = TextEditingController();
+  String isMainPage = '0';
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  void _onSave() {
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+    final code = _codeController.text;
+
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Title required')));
+      return;
+    }
+
+    widget.onSave({"title": title, "description": description, "code": code});
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Add New API Documentation',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Title',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Code',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: CodeEditorField(controller: _codeController),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel')),
+                const SizedBox(width: 12),
+                ElevatedButton(onPressed: _onSave, child: const Text('Save')),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CodeEditorField extends StatefulWidget {
+  final TextEditingController controller;
+  const CodeEditorField({super.key, required this.controller});
+
+  @override
+  State<CodeEditorField> createState() => _CodeEditorFieldState();
+}
+
+class _CodeEditorFieldState extends State<CodeEditorField> {
+  final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF2D2D2D),
+      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(minHeight: 160),
+      child: TextField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        maxLines: null,
+        keyboardType: TextInputType.multiline,
+        style: GoogleFonts.firaCode(
+          fontSize: 13,
+          color: Colors.white,
+          height: 1.5,
+        ),
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+          isCollapsed: true,
+        ),
+        cursorColor: Colors.white,
+      ),
+    );
   }
 }

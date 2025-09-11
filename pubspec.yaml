@@ -21,8 +21,7 @@ dependencies:
   path_provider: ^2.1.5
   cached_network_image: ^3.4.1
   sqflite: ^2.3.0
-  sqflite_common_ffi: ^2.3.0
-  sqflite_common_ffi_web: ^0.4.0
+  sqlite3: ^2.4.0
   get: ^4.6.5
   google_fonts: ^6.3.1
   url_launcher: ^6.3.2
@@ -38,6 +37,7 @@ dependencies:
   intl: ^0.20.2
   font_awesome_flutter: ^10.4.0
   flutter_staggered_animations: ^1.1.1
+  idb_shim: ^2.6.7
 
 dev_dependencies:
   flutter_test:
@@ -52,3 +52,4 @@ flutter:
   assets:
     - assets/images/
     - assets/files/
+    - assets/database/
