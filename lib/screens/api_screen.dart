@@ -92,6 +92,7 @@ class _ApiScreenState extends State<ApiScreen> {
 
           if (response["success"] == 'Y') {
             setState(() => apiDocs.add(newDoc));
+            Get.back();
             ScaffoldMessenger.of(Get.context!).showSnackBar(
               SnackBar(content: Text('Added: ${newDoc["title"]}')),
             );
@@ -113,18 +114,24 @@ class _ApiScreenState extends State<ApiScreen> {
         onSave: (menu) async {
           const CustomDialog(onWillPop: false).loadingDialog();
 
-          print('menu $menu');
-
           final response =
               await HTTPRequest(subApi: APIConfig.apiMenus, parameters: menu)
                   .post();
 
           Get.back();
 
-          print('response $response');
-
           if (response["success"] == 'Y') {
-            setState(() => menus.add(menu));
+            if (menu["is_main_page"] == 'Y') {
+              setState(() => menus.add(menu));
+            } else {
+              setState(() => menus = menus.map((item) {
+                    if (item["menu_id"] == menu["parent_menu_id"]) {
+                      item["children"].add(menu);
+                    }
+                    return item;
+                  }).toList());
+            }
+            Get.back();
             ScaffoldMessenger.of(Get.context!).showSnackBar(
               SnackBar(content: Text('Added: ${menu["title"]}')),
             );
@@ -423,6 +430,7 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
       "desc": description,
       "is_main_page": isMainPage ?? 'Y',
       "parent_menu_id": parentMenuId,
+      "children": []
     });
   }
 
