@@ -2,11 +2,14 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:convert';
-
-import 'package:cmdsidocs/database/pages_tbl.dart';
+import 'package:cmdsidocs/api_config.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
+
+import '../custom_dialogs.dart';
+import '../http_request.dart';
 
 class ApiScreen extends StatefulWidget {
   const ApiScreen({super.key, this.menuId});
@@ -18,7 +21,7 @@ class ApiScreen extends StatefulWidget {
 }
 
 class _ApiScreenState extends State<ApiScreen> {
-  List<Map<String, dynamic>> menus = [];
+  List<dynamic> menus = [];
   List<dynamic> apiDocs = [];
   bool isLoading = true;
   int menuId = 0;
@@ -34,36 +37,42 @@ class _ApiScreenState extends State<ApiScreen> {
   }
 
   Future<void> _loadMenus() async {
-    await DatabaseHelper.instance.fetchAllPagesByPageId(0).then((res) {
-      setState(() {
-        menus = res;
-        isLoading = false;
-      });
-    });
-  }
-
-  Future<void> _loadApiDocumentation() async {
-    final sampleData = await DatabaseHelper.instance.getPageContent(menuId);
+    final response =
+        await HTTPRequest(subApi: '${APIConfig.apiMenus}/page/0').get();
 
     setState(() {
-      apiDocs = sampleData;
-      for (var doc in apiDocs) {
-        _sectionKeys[doc["title"]] = GlobalKey();
+      if (response['success'] == 'Y') {
+        menus = response['items'];
       }
+
       isLoading = false;
     });
   }
 
-  void _scrollToSection(String title) {
-    final key = _sectionKeys[title];
-    if (key != null && key.currentContext != null) {
-      Scrollable.ensureVisible(
-        key.currentContext!,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
-    }
+  Future<void> _loadApiDocumentation() async {
+    final response =
+        await HTTPRequest(subApi: '${APIConfig.apiMenus}/$menuId/content')
+            .get();
+
+    setState(() {
+      if (response['success'] == 'Y') {
+        apiDocs = response["items"]["content"];
+      }
+
+      isLoading = false;
+    });
   }
+
+  // void _scrollToSection(String title) {
+  //   final key = _sectionKeys[title];
+  //   if (key != null && key.currentContext != null) {
+  //     Scrollable.ensureVisible(
+  //       key.currentContext!,
+  //       duration: const Duration(milliseconds: 400),
+  //       curve: Curves.easeInOut,
+  //     );
+  //   }
+  // }
 
   // Restore Add dialog + insertion logic
   void _addNewApiDocumentation() {
@@ -71,14 +80,26 @@ class _ApiScreenState extends State<ApiScreen> {
       context: context,
       builder: (context) => AddApiDocumentationDialog(
         onSave: (newDoc) async {
-          setState(() => apiDocs.add(newDoc));
+          const CustomDialog(onWillPop: false).loadingDialog();
+          List alisto = List.of(apiDocs);
+          alisto.add(newDoc);
 
-          await DatabaseHelper.instance
-              .insertUpdateNewTextFile(menuId, jsonEncode(apiDocs));
+          final response = await HTTPRequest(
+              subApi: '${APIConfig.apiMenus}/$menuId/content',
+              parameters: {"content": jsonEncode(alisto)}).post();
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Added: ${newDoc["title"]}')),
-          );
+          Get.back();
+
+          if (response["success"] == 'Y') {
+            setState(() => apiDocs.add(newDoc));
+            ScaffoldMessenger.of(Get.context!).showSnackBar(
+              SnackBar(content: Text('Added: ${newDoc["title"]}')),
+            );
+          } else {
+            ScaffoldMessenger.of(Get.context!).showSnackBar(
+              SnackBar(content: Text('Failed to add: ${newDoc["title"]}')),
+            );
+          }
         },
       ),
     );
@@ -90,13 +111,28 @@ class _ApiScreenState extends State<ApiScreen> {
       builder: (context) => AddApiMenuDialog(
         menus: menus,
         onSave: (menu) async {
-          await DatabaseHelper.instance.insertPage(menu);
+          const CustomDialog(onWillPop: false).loadingDialog();
 
-          setState(() => menus.add(menu));
+          print('menu $menu');
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Added: ${menu["title"]}')),
-          );
+          final response =
+              await HTTPRequest(subApi: APIConfig.apiMenus, parameters: menu)
+                  .post();
+
+          Get.back();
+
+          print('response $response');
+
+          if (response["success"] == 'Y') {
+            setState(() => menus.add(menu));
+            ScaffoldMessenger.of(Get.context!).showSnackBar(
+              SnackBar(content: Text('Added: ${menu["title"]}')),
+            );
+          } else {
+            ScaffoldMessenger.of(Get.context!).showSnackBar(
+              SnackBar(content: Text('Failed to add: ${menu["title"]}')),
+            );
+          }
         },
       ),
     );
@@ -170,7 +206,7 @@ class _ApiScreenState extends State<ApiScreen> {
                     ),
                     onTap: () {
                       if (isMobile) Navigator.pop(context);
-                      setState(() => menuId = doc["id"]);
+                      setState(() => menuId = doc["menu_id"]);
                       _loadApiDocumentation();
                     },
                   );
@@ -242,7 +278,7 @@ class _ApiScreenState extends State<ApiScreen> {
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
-                                    api["description"],
+                                    api["desc"],
                                     style: GoogleFonts.poppins(
                                       fontSize: 16,
                                       color: Colors.grey[600],
@@ -349,8 +385,8 @@ class _ApiScreenState extends State<ApiScreen> {
 class AddApiMenuDialog extends StatefulWidget {
   const AddApiMenuDialog(
       {super.key, required this.onSave, required this.menus});
-  final Function(Map<String, dynamic>) onSave;
-  final List<Map<String, dynamic>> menus;
+  final Function(dynamic) onSave;
+  final List<dynamic> menus;
 
   @override
   State<AddApiMenuDialog> createState() => _AddApiMenuDialogState();
@@ -360,8 +396,8 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _codeController = TextEditingController();
-  String? isMainPage = '1';
-  String? parentPageId;
+  String? isMainPage = 'Y';
+  String? parentMenuId;
 
   @override
   void dispose() {
@@ -384,9 +420,9 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
     widget.onSave({
       "page_id": 0,
       "title": title,
-      "description": description,
-      "is_main_page": int.parse(isMainPage ?? '0'),
-      "parent_page_id": parentPageId,
+      "desc": description,
+      "is_main_page": isMainPage ?? 'Y',
+      "parent_menu_id": parentMenuId,
     });
   }
 
@@ -436,8 +472,8 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
                 const DropdownMenuItem(
                     value: null, child: Text('Select (Y/N)')),
                 ...[
-                  {"text": 'Yes', "value": '1'},
-                  {"text": 'No', "value": '0'}
+                  {"text": 'Yes', "value": 'Y'},
+                  {"text": 'No', "value": 'N'}
                 ].map(
                   (item) => DropdownMenuItem(
                     value: item["value"],
@@ -450,7 +486,7 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
                 () => isMainPage = value,
               ),
             ),
-            if (int.parse(isMainPage ?? '0') == 0) ...[
+            if ((isMainPage ?? 'Y') == 'N') ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(
@@ -464,14 +500,14 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
                       value: null, child: Text('Select parent menu')),
                   ...widget.menus.map(
                     (item) => DropdownMenuItem(
-                      value: item["id"].toString(),
+                      value: item["menu_id"].toString(),
                       child: Text(item["title"] as String),
                     ),
                   ),
                 ],
-                value: parentPageId,
+                value: parentMenuId,
                 onChanged: (value) => setState(
-                  () => parentPageId = value,
+                  () => parentMenuId = value,
                 ),
               ),
             ],
@@ -496,9 +532,9 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
 // Add API dialog + code editor
 class AddApiDocumentationDialog extends StatefulWidget {
   const AddApiDocumentationDialog(
-      {super.key, required this.onSave, this.parentPageId});
+      {super.key, required this.onSave, this.parentMenuId});
   final Function(Map<String, dynamic>) onSave;
-  final int? parentPageId;
+  final int? parentMenuId;
 
   @override
   State<AddApiDocumentationDialog> createState() =>
@@ -530,7 +566,7 @@ class _AddApiDocumentationDialogState extends State<AddApiDocumentationDialog> {
       return;
     }
 
-    widget.onSave({"title": title, "description": description, "code": code});
+    widget.onSave({"title": title, "desc": description, "code": code});
     Navigator.of(context).pop();
   }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/route_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'database/pages_tbl.dart';
 import 'screens/about_screen.dart';
 import 'screens/api_screen.dart';
 import 'screens/contact_screen.dart';
@@ -11,7 +11,6 @@ import 'screens/luvpark_spms_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await DatabaseHelper.instance.init();
   runApp(const CleverMindsApp());
 }
 
@@ -20,7 +19,7 @@ class CleverMindsApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       title: 'Clever Minds Digital Solutions',
       theme: ThemeData(
         primarySwatch: Colors.blue,
