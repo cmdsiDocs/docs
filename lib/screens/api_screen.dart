@@ -1,5 +1,5 @@
 // screens/api_screen.dart
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, dead_code
 
 import 'dart:convert';
 import 'package:cmdsidocs/api_config.dart';
@@ -55,9 +55,7 @@ class _ApiScreenState extends State<ApiScreen> {
             .get();
 
     setState(() {
-      if (response['success'] == 'Y') {
-        apiDocs = response["items"]["content"];
-      }
+      apiDocs = response["items"]["content"] ?? [];
 
       isLoading = false;
     });
@@ -110,7 +108,6 @@ class _ApiScreenState extends State<ApiScreen> {
     showDialog(
       context: context,
       builder: (context) => AddApiMenuDialog(
-        menus: menus,
         onSave: (menu) async {
           const CustomDialog(onWillPop: false).loadingDialog();
 
@@ -124,10 +121,27 @@ class _ApiScreenState extends State<ApiScreen> {
             if (menu["is_main_page"] == 'Y') {
               setState(() => menus.add(menu));
             } else {
+              List<dynamic> callMeChild(List<dynamic> children) {
+                for (dynamic child in children) {
+                  if (child["menu_id"] == menuId) {
+                    children.add(menu);
+
+                    break;
+                  }
+
+                  child["children"] = callMeChild(child["children"]);
+                }
+
+                return children;
+              }
+
               setState(() => menus = menus.map((item) {
                     if (item["menu_id"] == menu["parent_menu_id"]) {
                       item["children"].add(menu);
+                    } else {
+                      item["children"] = callMeChild(item["children"]);
                     }
+
                     return item;
                   }).toList());
             }
@@ -145,7 +159,101 @@ class _ApiScreenState extends State<ApiScreen> {
     );
   }
 
+  List<Widget> callTheSubChildren(List<dynamic> menuChildren,
+      {required bool isMobile}) {
+    List<Widget> subChildren = [];
+    for (dynamic menuChild in menuChildren) {
+      subChildren.add(bobTheBuilder(menuChild, isMobile: isMobile));
+    }
+
+    return subChildren;
+  }
+
+  Widget bobTheBuilder(dynamic menu, {required bool isMobile}) {
+    final bool hasChildren = menu["children"].isNotEmpty;
+    final bool isSelected = menu["menu_id"] == menuId;
+
+    return hasChildren
+        ? StatefulBuilder(
+            builder: (context, setHoverState) {
+              bool isHovered = false;
+
+              return MouseRegion(
+                onEnter: (_) => setHoverState(() => isHovered = true),
+                onExit: (_) => setHoverState(() => isHovered = false),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: isHovered ? Colors.blue : Colors.transparent,
+                        width: 1.5),
+                    borderRadius: BorderRadius.circular(8),
+                    color: isHovered ? Colors.blue : Colors.transparent,
+                  ),
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      dividerColor: Colors.grey.shade300,
+                    ),
+                    child: ExpansionTile(
+                      title: Text(
+                        menu["title"],
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 5),
+                          child: Column(
+                            children: callTheSubChildren(menu["children"],
+                                isMobile: isMobile),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          )
+        : Material(
+            color: Colors.transparent,
+            child: ListTile(
+              title: Text(
+                menu["title"],
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  color: isSelected ? Colors.blue : Colors.black,
+                ),
+              ),
+              trailing: isSelected
+                  ? Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.blue,
+                      ),
+                    )
+                  : null,
+              onTap: () {
+                if (isMobile) Navigator.pop(context);
+                setState(() => menuId = menu["menu_id"]);
+                _loadApiDocumentation();
+              },
+              hoverColor: Colors.blue.withOpacity(0.05),
+            ),
+          );
+  }
+
   Widget _buildSidebar(bool isMobile) {
+    List<Widget> children = [];
+
+    for (dynamic menu in menus) {
+      children.add(bobTheBuilder(menu, isMobile: isMobile));
+    }
+
     return Container(
       width: isMobile ? null : 240,
       color: Colors.grey[100],
@@ -171,56 +279,7 @@ class _ApiScreenState extends State<ApiScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          ...menus.map((entry) {
-            return ExpansionTile(
-              title: Text(
-                entry["title"],
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              children: (entry["children"] as List).map<Widget>((doc) {
-                if (doc["children"] != null &&
-                    (doc["children"] as List).isNotEmpty) {
-                  // 🔁 Submenu (recursively ExpansionTile)
-                  return ExpansionTile(
-                    title: Text(
-                      doc["title"],
-                      style: GoogleFonts.poppins(
-                          fontSize: 14, fontWeight: FontWeight.w500),
-                    ),
-                    children: (doc["children"] as List).map<Widget>((subDoc) {
-                      return ListTile(
-                        title: Text(
-                          subDoc["title"],
-                          style: GoogleFonts.poppins(fontSize: 13),
-                        ),
-                        onTap: () {
-                          if (isMobile) Navigator.pop(context);
-                          setState(() => menuId = subDoc["id"]);
-                          _loadApiDocumentation();
-                        },
-                      );
-                    }).toList(),
-                  );
-                } else {
-                  // ✅ Regular page (no children)
-                  return ListTile(
-                    title: Text(
-                      doc["title"],
-                      style: GoogleFonts.poppins(fontSize: 14),
-                    ),
-                    onTap: () {
-                      if (isMobile) Navigator.pop(context);
-                      setState(() => menuId = doc["menu_id"]);
-                      _loadApiDocumentation();
-                    },
-                  );
-                }
-              }).toList(),
-            );
-          }),
+          ...children,
         ],
       ),
     );
@@ -245,16 +304,16 @@ class _ApiScreenState extends State<ApiScreen> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (!isMobile) _buildSidebar(false),
-
-                // -------- Main Content --------
                 Expanded(
                   child: SingleChildScrollView(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: apiDocs
                           .map(
                             (api) => Container(
@@ -390,10 +449,8 @@ class _ApiScreenState extends State<ApiScreen> {
 
 // Add Menu
 class AddApiMenuDialog extends StatefulWidget {
-  const AddApiMenuDialog(
-      {super.key, required this.onSave, required this.menus});
+  const AddApiMenuDialog({super.key, required this.onSave});
   final Function(dynamic) onSave;
-  final List<dynamic> menus;
 
   @override
   State<AddApiMenuDialog> createState() => _AddApiMenuDialogState();
@@ -403,8 +460,15 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _codeController = TextEditingController();
+  List<dynamic> menus = [];
   String? isMainPage = 'Y';
   String? parentMenuId;
+
+  @override
+  void initState() {
+    _loadMenus();
+    super.initState();
+  }
 
   @override
   void dispose() {
@@ -412,6 +476,17 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
     _descriptionController.dispose();
     _codeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadMenus() async {
+    final response =
+        await HTTPRequest(subApi: '${APIConfig.apiMenus}/page/0/menus').get();
+
+    setState(() {
+      if (response['success'] == 'Y') {
+        menus = response['items'];
+      }
+    });
   }
 
   void _onSave() {
@@ -506,7 +581,7 @@ class _AddApiMenuDialogState extends State<AddApiMenuDialog> {
                 items: [
                   const DropdownMenuItem(
                       value: null, child: Text('Select parent menu')),
-                  ...widget.menus.map(
+                  ...menus.map(
                     (item) => DropdownMenuItem(
                       value: item["menu_id"].toString(),
                       child: Text(item["title"] as String),

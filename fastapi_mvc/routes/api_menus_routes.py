@@ -15,6 +15,10 @@ def get_api_menu(menu_id: int):
 def get_api_menu(page_id: int):
     return api_menus_controller.fetch_api_menu_by_page_id(page_id)
 
+@router.get("/page/{page_id}/menus")
+def get_api_menu(page_id: int):
+    return api_menus_controller.fetch_api_menus_by_page_id(page_id)
+
 @router.post("/")
 async def post_api_menu(request: Request):
     data = await request.json()

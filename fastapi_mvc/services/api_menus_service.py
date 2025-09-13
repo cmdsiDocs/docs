@@ -55,6 +55,25 @@ def get_all_api_menus():
         rows = cursor.fetchall()
         return [ApiMenu(*row).to_dict() for row in rows]
 
+def get_all_api_menus_page_id(page_id: int):
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT menu_id, page_id, title, `desc`, is_main_page, 
+                   parent_menu_id, created_on, updated_on 
+            FROM api_menu WHERE page_id = %s
+        """, (page_id,))
+        rows = cursor.fetchall()
+
+    menus = []
+    for row in rows:
+        menu = ApiMenu(*row).to_dict()
+        file_path = os.path.join(FILES_DIR, f"{menu['menu_id']}.text")
+        if not os.path.exists(file_path):  # ✅ only include if no .text file yet
+            menus.append(menu)
+
+    return menus
+
 
 def get_api_menu_by_id(menu_id: int):
     conn = get_connection()

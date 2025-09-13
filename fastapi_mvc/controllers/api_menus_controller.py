@@ -19,6 +19,15 @@ def fetch_api_menu_by_id(menu_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+def fetch_api_menus_by_page_id(page_id: int):
+    try:
+        api_menu = api_menus_service.get_all_api_menus_page_id(page_id)
+        if api_menu:
+            return {"success": "Y", "msg": "", "items": api_menu}
+        return {"success": "N", "msg": "api_menu not found", "items": []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 def fetch_api_menu_by_page_id(page_id: int):
     try:
         api_menu = api_menus_service.fetch_all_menus_by_page_id(page_id)
@@ -27,7 +36,6 @@ def fetch_api_menu_by_page_id(page_id: int):
         return {"success": "N", "msg": "api_menu not found", "items": []}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 def create_api_menu(data):
     try:
@@ -94,7 +102,7 @@ def fetch_menu_content(menu_id: int):
         content = api_menus_service.get_menu_content(menu_id)
         if content is not None:
             return {"success": "Y", "msg": "", "items": {"id": menu_id, "content": content}}
-        return {"success": "N", "msg": "Menu content not found", "items": []}
+        return {"success": "N", "msg": "Menu content not found", "items": {}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
  
