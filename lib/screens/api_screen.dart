@@ -74,6 +74,12 @@ class _ApiScreenState extends State<ApiScreen> {
 
   // Restore Add dialog + insertion logic
   void _addNewApiDocumentation() {
+    if (menuId == 0) {
+      ScaffoldMessenger.of(Get.context!).showSnackBar(
+        const SnackBar(content: Text('No selected menu!')),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AddApiDocumentationDialog(
