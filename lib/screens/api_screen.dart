@@ -650,7 +650,6 @@ class _AddApiDocumentationDialogState extends State<AddApiDocumentationDialog> {
     }
 
     widget.onSave({"title": title, "desc": description, "code": code});
-    Navigator.of(context).pop();
   }
 
   @override
